@@ -1,4 +1,4 @@
-"""Run a validated LLM_VLA action sequence on a Franka Panda in Isaac Sim."""
+"""Run a persistent Franka Panda Isaac Sim server for LLM_VLA IPC requests."""
 
 from __future__ import annotations
 
@@ -13,16 +13,17 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from llm_vla.sim_actions import FRANKA_JOINT_NAME, joint_targets_for_sequence  # noqa: E402
+from llm_vla.server import serve_forever  # noqa: E402
+from llm_vla.sim_actions import ACTION_STEPS, RESET_STEPS, FRANKA_JOINT_NAME, joint_targets_for_sequence  # noqa: E402
 from llm_vla.sim_runtime import should_force_exit_after_run  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run LLM_VLA action tokens on a Franka Panda.")
-    parser.add_argument("--sequence", required=True, help='Action sequence, for example: "left reset right reset".')
-    parser.add_argument("--max_steps", type=int, default=180, help="Maximum simulation steps before stopping.")
-    parser.add_argument("--action_steps", type=int, default=30, help="Simulation steps for each action token.")
-    parser.add_argument("--reset_steps", type=int, default=60, help="Simulation steps for each reset token.")
+    parser = argparse.ArgumentParser(description="Run a persistent LLM_VLA Franka IPC server.")
+    parser.add_argument("--host", default="127.0.0.1", help="TCP host to bind.")
+    parser.add_argument("--port", type=int, default=8765, help="TCP port to bind.")
+    parser.add_argument("--action_steps", type=int, default=ACTION_STEPS, help="Simulation steps for each action token.")
+    parser.add_argument("--reset_steps", type=int, default=RESET_STEPS, help="Simulation steps for each reset token.")
     parser.add_argument(
         "--graceful_close",
         action="store_true",
@@ -63,13 +64,39 @@ def design_scene() -> Articulation:
     return Articulation(cfg=robot_cfg)
 
 
-def run_sequence() -> None:
-    targets = joint_targets_for_sequence(
-        args_cli.sequence,
-        action_steps=args_cli.action_steps,
-        reset_steps=args_cli.reset_steps,
-    )
+class FrankaSequenceExecutor:
+    def __init__(
+        self,
+        sim: sim_utils.SimulationContext,
+        robot: Articulation,
+        joint_id: int,
+        action_steps: int,
+        reset_steps: int,
+    ):
+        self.sim = sim
+        self.robot = robot
+        self.joint_id = joint_id
+        self.action_steps = action_steps
+        self.reset_steps = reset_steps
 
+    def __call__(self, sequence: str) -> None:
+        targets = joint_targets_for_sequence(
+            sequence,
+            action_steps=self.action_steps,
+            reset_steps=self.reset_steps,
+        )
+        for token, target_rad, step_count in targets:
+            for _ in range(step_count):
+                joint_target = self.robot.data.default_joint_pos.clone()
+                joint_target[:, self.joint_id] = torch.tensor(target_rad, device=self.robot.device)
+                self.robot.set_joint_position_target(joint_target)
+                self.robot.write_data_to_sim()
+                self.sim.step()
+                self.robot.update(self.sim.get_physics_dt())
+            print(f"{token} {target_rad}", flush=True)
+
+
+def create_executor() -> FrankaSequenceExecutor:
     sim_cfg = sim_utils.SimulationCfg(dt=0.01)
     sim = sim_utils.SimulationContext(sim_cfg)
     sim.set_camera_view([2.5, 2.0, 1.8], [0.0, 0.0, 0.4])
@@ -87,26 +114,22 @@ def run_sequence() -> None:
     robot.write_joint_state_to_sim(joint_pos, joint_vel)
     robot.reset()
 
-    executed_steps = 0
-    for token, target_rad, step_count in targets:
-        if executed_steps >= args_cli.max_steps:
-            break
-        steps_to_run = min(step_count, args_cli.max_steps - executed_steps)
-        for _ in range(steps_to_run):
-            joint_target = robot.data.default_joint_pos.clone()
-            joint_target[:, joint_id] = torch.tensor(target_rad, device=robot.device)
-            robot.set_joint_position_target(joint_target)
-            robot.write_data_to_sim()
-            sim.step()
-            robot.update(sim.get_physics_dt())
-            executed_steps += 1
-        print(f"{token} {target_rad}")
+    return FrankaSequenceExecutor(sim, robot, joint_id, args_cli.action_steps, args_cli.reset_steps)
+
+
+def main() -> int:
+    executor = create_executor()
+    print(f"LLM_VLA Franka server listening on {args_cli.host}:{args_cli.port}", flush=True)
+    serve_forever(args_cli.host, args_cli.port, executor)
+    return 0
 
 
 if __name__ == "__main__":
     exit_code = 0
     try:
-        run_sequence()
+        exit_code = main()
+    except KeyboardInterrupt:
+        print("LLM_VLA Franka server stopped", flush=True)
     except Exception:
         traceback.print_exc()
         exit_code = 1

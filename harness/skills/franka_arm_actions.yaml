@@ -5,20 +5,21 @@ robot:
 
 execution:
   action_steps: 30
-  max_default_steps: 120
+  reset_steps: 60
+  max_default_steps: 180
 
 actions:
   left:
     binary_meaning: "0"
     joint: panda_joint1
-    target_rad: -1.57079632679
-    target_degrees: -90
+    target_rad: -2.0
+    target_degrees: -114.591559
     requires_following_reset: true
   right:
     binary_meaning: "1"
     joint: panda_joint1
-    target_rad: 1.57079632679
-    target_degrees: 90
+    target_rad: 2.0
+    target_degrees: 114.591559
     requires_following_reset: true
   reset:
     joint: panda_joint1

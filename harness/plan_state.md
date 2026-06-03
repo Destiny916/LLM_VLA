@@ -1,6 +1,6 @@
 # Plan State
 
-Current step: P5 pending: persistent Isaac Sim server.
+Current step: P7 complete: two-window integration verified.
 
 Plan history:
 
@@ -16,3 +16,8 @@ Plan history:
 - P4-next: implement local JSON-line IPC protocol between LLM CLI and persistent Isaac Sim server.
 - P4-complete: standard-library UTF-8 JSON-line IPC helpers implemented for validated requests and ok/error responses.
 - P5-next: implement persistent Isaac Sim server that listens for validated IPC requests and executes Franka sequences.
+- P5-complete: persistent Isaac Sim server entrypoint and testable TCP request handling implemented.
+- P6-next: implement LLM CLI control client that sends validated API token sequences to the persistent simulation server.
+- P6-complete: interactive LLM CLI control client implemented; it sends validated API token sequences to the persistent simulation server.
+- P7-next: run two-window integration with Isaac Sim server and LLM CLI client.
+- P7-complete: headless Isaac Sim server plus LLM CLI were integrated; request `表示 01` produced and executed `left reset right reset`, then the background server was stopped.

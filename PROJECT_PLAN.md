@@ -9,8 +9,8 @@
 
 当前机器人动作层已经完成：Franka Panda 机械臂能够执行 `left`、`right`、`reset`，其中：
 
-- `left`：`panda_joint1 = -1.57079632679 rad`，左转 90°
-- `right`：`panda_joint1 = 1.57079632679 rad`，右转 90°
+- `left`：`panda_joint1 = -2.0 rad`
+- `right`：`panda_joint1 = 2.0 rad`
 - `reset`：`panda_joint1 = 0.0 rad`，复位
 
 新的目标是构建一个 LLM CLI 控制窗口：用户在 CLI 中输入复杂自然语言，CLI 调用真实大语言模型 API，让 LLM 理解用户意图，返回一段可见决策摘要和动作 token 结果。CLI 必须把这两项显示给用户，再将通过本地校验的动作 token 序列发送给正在运行的 Isaac Sim 仿真服务端，Franka 立即执行。
@@ -50,7 +50,8 @@
 - `left reset right reset` 这类序列的本地规则检查。
 - Franka Panda 仿真场景创建。
 - `panda_joint1` 关节目标控制。
-- 90° 左右转映射。
+- 2.0 rad 左右转映射。
+- reset 默认执行时间已增加到 60 个仿真步，left/right 默认执行 30 个仿真步。
 
 需要新增：
 
@@ -214,8 +215,8 @@ LLM 的任务不是闲聊，而是把自然语言转换为机器人可执行动�
 你必须把用户自然语言转换为机器人动作 token 序列，并给出简短可见决策摘要。
 
 机器人只有三个合法动作 token：
-- left：机械臂 left turn，表示 panda_joint1 左转 90 度，同时语义上代表二进制 0。
-- right：机械臂 right turn，表示 panda_joint1 右转 90 度，同时语义上代表二进制 1。
+- left：机械臂 left turn，表示 panda_joint1 到 -2.0 rad，同时语义上代表二进制 0。
+- right：机械臂 right turn，表示 panda_joint1 到 +2.0 rad，同时语义上代表二进制 1。
 - reset：机械臂回到中立位置。
 
 硬性规则：
@@ -306,8 +307,9 @@ visible_reasoning 只写一句简短决策摘要，不要写隐藏链式思考�
 | P2 | 已完成 | LLM CLI 控制窗口设计与 prompt 规则模块，包含 API 原始输出、可见决策摘要和 API token 显示 |
 | P3 | 已完成 | 真实大语言模型 API 接入、JSON 解析、详情显示和一次 repair |
 | P4 | 已完成 | IPC 协议模块 |
-| P5 | 下一步 | 仿真常驻服务端 |
-| P6 | 待实现 | 复杂自然语言输入集成验证 |
+| P5 | 已完成 | 仿真常驻服务端 |
+| P6 | 已完成 | LLM CLI 控制端与仿真服务端通信 |
+| P7 | 已完成 | 双窗口集成验证 |
 
 ## 实施计划
 
@@ -467,7 +469,7 @@ def decode_response(data: bytes) -> dict:
 D:\il\env\Scripts\python.exe -m pytest tests\test_ipc.py -v
 ```
 
-### 任务 5：新增仿真服务端
+### 任务 5：新增仿真服务端（已完成）
 
 **目标：** 让 Isaac Sim 常驻运行并接收 LLM CLI 命令。
 
@@ -475,7 +477,32 @@ D:\il\env\Scripts\python.exe -m pytest tests\test_ipc.py -v
 
 - `sim/run_franka_server.py`
 
-### 任务 6：新增 LLM CLI 控制端
+**完成内容：**
+
+- `llm_vla/server.py`
+- `tests/test_server.py`
+- `sim/run_franka_server.py`
+- 服务端使用 `llm_vla.ipc` 的 UTF-8 JSON-line 协议。
+- 服务端收到合法 `sequence` 后调用 Franka 执行器。
+- 执行成功返回 `{"status":"ok","executed":"..."}`。
+- 解码、校验或执行失败返回 `{"status":"error","message":"..."}`。
+- Isaac Sim 场景常驻，不因每次输入而重启。
+
+**运行命令：**
+
+```powershell
+D:\il\env\Scripts\python.exe -B sim\run_franka_server.py `
+  --host 127.0.0.1 `
+  --port 8765
+```
+
+**验证：**
+
+```powershell
+D:\il\env\Scripts\python.exe -m pytest tests\test_server.py -v
+```
+
+### 任务 6：新增 LLM CLI 控制端（已完成）
 
 **目标：** 提供独立 CLI 窗口，接收自然语言并调用 LLM 控制仿真。
 
@@ -496,7 +523,31 @@ D:\il\env\Scripts\python.exe -m pytest tests\test_ipc.py -v
 - 打印执行结果。
 - 输入 `quit` 或 `exit` 时退出 CLI。
 
-### 任务 7：双窗口集成验证
+**完成内容：**
+
+- `llm_vla/client.py`
+- `llm_vla/cli_control.py`
+- `tests/test_client.py`
+- `tests/test_cli_control.py`
+- CLI 调用真实 planner，打印 API 原始输出、思考摘要、API token、本地校验和仿真结果。
+- CLI 通过 `llm_vla.client.send_sequence()` 把校验后的 `action_tokens` 发送给仿真服务端。
+- 输入 `quit` 或 `exit` 只退出 CLI，不关闭仿真服务端。
+
+**运行命令：**
+
+```powershell
+python -m llm_vla.cli_control `
+  --host 127.0.0.1 `
+  --port 8765
+```
+
+**验证：**
+
+```powershell
+D:\il\env\Scripts\python.exe -m pytest tests\test_client.py tests\test_cli_control.py -v
+```
+
+### 任务 7：双窗口集成验证（已完成）
 
 **窗口 1：启动仿真服务端**
 
@@ -544,6 +595,26 @@ quit
 - CLI 将 token 发送给仿真。
 - Franka 按输出动作执行。
 - 输入 `quit` 只退出 CLI，不关闭仿真服务端。
+
+**实测结果：**
+
+- 后台启动 `sim/run_franka_server.py --headless --host 127.0.0.1 --port 8765` 成功。
+- 服务端日志出现 `LLM_VLA Franka server listening on 127.0.0.1:8765`。
+- CLI 输入 `表示 01` 后调用 DeepSeek API，返回 `action_tokens: left reset right reset`。
+- CLI 显示 `本地校验: ok` 和 `仿真结果: ok`。
+- 服务端日志记录（运动参数更新前的历史验证日志）：
+  - `left -1.57079632679`
+  - `reset 0.0`
+  - `right 1.57079632679`
+  - `reset 0.0`
+- 集成验证后已停止后台服务端并释放 8765 端口。
+
+**后续运动参数更新：**
+
+- `left` 目标已从 `-1.57079632679 rad` 改为 `-2.0 rad`。
+- `right` 目标已从 `1.57079632679 rad` 改为 `2.0 rad`。
+- `reset` 默认执行步数已从 30 增加到 60。
+- `left reset right reset` 的默认完整仿真步数已更新为 180。
 
 ## 暂不做
 

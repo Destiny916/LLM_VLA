@@ -20,8 +20,8 @@ def build_system_prompt(harness_context: str) -> str:
         - action_tokens：唯一可执行字段，只能由 left、right、reset 组成，并用单个空格分隔。
 
         合法动作 token：
-        - left：机械臂左转 90 度，语义上表示二进制 0。
-        - right：机械臂右转 90 度，语义上表示二进制 1。
+        - left：机械臂左转到 panda_joint1 = -2.0 rad，语义上表示二进制 0。
+        - right：机械臂右转到 panda_joint1 = +2.0 rad，语义上表示二进制 1。
         - reset：机械臂回到中立位置。
 
         硬性映射：

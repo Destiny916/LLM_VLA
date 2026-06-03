@@ -17,9 +17,11 @@ Allowed tokens:
 
 Rules:
 
-- `left` means Franka `panda_joint1 = -1.57079632679 rad` (-90 degrees).
-- `right` means Franka `panda_joint1 = +1.57079632679 rad` (+90 degrees).
+- `left` means Franka `panda_joint1 = -2.0 rad`.
+- `right` means Franka `panda_joint1 = +2.0 rad`.
 - `reset` means Franka `panda_joint1 = 0.0 rad`.
+- Default motion actions run for 30 simulation steps.
+- Default `reset` actions run for 60 simulation steps.
 - Every `left` or `right` must be followed immediately by `reset`.
 - `reset` may not appear as the first action.
 - The execution token sequence must not contain digits, JSON, punctuation, Chinese explanation, or extra text.

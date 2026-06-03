@@ -15,7 +15,8 @@
 - Every `left` or `right` must be followed by `reset`.
 - Simulation asset: IsaacLab built-in `FRANKA_PANDA_CFG`.
 - Controlled joint: `panda_joint1`.
-- Motion amplitude: `left` is -90 degrees and `right` is +90 degrees.
+- Motion amplitude: `left` is -2.0 rad and `right` is +2.0 rad.
+- Reset duration: default reset token execution is 60 simulation steps; default motion token execution is 30 simulation steps.
 - Action layer status: `left`, `right`, and `reset` execution is already implemented.
 - Current architecture target: a CLI window calls a real LLM API, shows API raw output, visible reasoning summary, API token result, local validation result, and sends validated tokens to a persistent Isaac Sim server window.
 - Visible reasoning summary is user-facing explanation only; it is not hidden chain-of-thought and must not be used as the execution source.
@@ -23,5 +24,9 @@
 - Task 3 status: planner parses LLM JSON, exposes raw output, visible reasoning, API token result, validates `action_tokens`, and retries repair once on invalid output.
 - Explicit user mapping priority: if a user says a temporary mapping such as `right=0` and `left=1`, that request-specific mapping overrides the default binary mapping for semantic interpretation only.
 - Task 4 status: `llm_vla.ipc` encodes and decodes UTF-8 JSON-line requests and responses; request sequences are validated before transport.
+- Task 5 status: persistent Isaac Sim server entrypoint `sim/run_franka_server.py` listens for JSON-line requests and executes validated Franka sequences without restarting the scene.
+- Task 6 status: interactive LLM CLI client `llm_vla.cli_control` sends validated API token sequences to the persistent simulation server and displays raw API output, visible reasoning, token result, validation, and simulation response.
+- Task 7 status: two-window integration verified with headless Isaac Sim server and LLM CLI; request `表示 01` executed `left reset right reset` and returned simulation status `ok`.
+- Motion update status: left/right targets changed to +/-2.0 rad and reset duration increased to 60 simulation steps.
 - Commit branch: `codex`.
 - Do not commit automatically. Ask the user before every commit.

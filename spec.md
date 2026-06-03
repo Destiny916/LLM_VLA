@@ -78,8 +78,8 @@ reset
 
 | Token | 二进制语义 | Franka 关节目标 |
 | --- | --- | --- |
-| `left` | `0` | `panda_joint1 = -1.57079632679 rad`，即 -90° |
-| `right` | `1` | `panda_joint1 = 1.57079632679 rad`，即 +90° |
+| `left` | `0` | `panda_joint1 = -2.0 rad` |
+| `right` | `1` | `panda_joint1 = 2.0 rad` |
 | `reset` | 复位 | `panda_joint1 = 0.0 rad` |
 
 约束：
@@ -168,8 +168,8 @@ python -m llm_vla.plan "输出 01 的动作" --mock-output "left reset right res
 
 ```python
 ACTION_TARGETS = {
-    "left": -1.57079632679,
-    "right": 1.57079632679,
+    "left": -2.0,
+    "right": 2.0,
     "reset": 0.0,
 }
 ```
@@ -182,7 +182,7 @@ ACTION_TARGETS = {
 
 - 启动 Isaac Sim / IsaacLab。
 - 创建 ground、light 和 Franka Panda。
-- 解析 `--sequence`、`--max_steps`、`--action_steps`。
+- 解析 `--sequence`、`--max_steps`、`--action_steps`、`--reset_steps`。
 - 按序给 `panda_joint1` 写入关节位置目标。
 - 打印每个执行 token 和目标弧度。
 
@@ -217,7 +217,7 @@ Isaac Sim headless smoke test：
 ```powershell
 D:\il\env\Scripts\python.exe -B sim\run_franka_sequence.py `
   --headless `
-  --max_steps 120 `
+  --max_steps 180 `
   --sequence "left reset right reset"
 ```
 
@@ -225,7 +225,7 @@ D:\il\env\Scripts\python.exe -B sim\run_franka_sequence.py `
 
 ```powershell
 D:\il\env\Scripts\python.exe -B sim\run_franka_sequence.py `
-  --max_steps 120 `
+  --max_steps 180 `
   --sequence "left reset right reset"
 ```
 
@@ -238,7 +238,7 @@ D:\il\env\Scripts\python.exe -B sim\run_franka_sequence.py `
 - `test_action_contract.py`：合法 token、非法 token、数字输出、缺少 reset。
 - `test_harness_contracts.py`：harness 文件存在、Rule 1、P0 历史、harness 检查脚本。
 - `test_planner.py`：mock planner、非法模型输出、prompt 读取 harness、环境变量缺失。
-- `test_sim_actions.py`：动作 token 到 Franka 90° 关节目标的映射。
+- `test_sim_actions.py`：动作 token 到 Franka 2.0 rad 关节目标的映射。
 - `test_sim_runtime.py`：默认强制退出策略和 `--graceful_close` 策略。
 
 完整测试命令：
@@ -256,10 +256,10 @@ D:\il\env\Scripts\python.exe -m pytest tests -v
 - Isaac Sim headless smoke test 输出：
 
 ```text
-left -1.57079632679
+left -2.0
 reset 0.0
-right 1.57079632679
+right 2.0
 reset 0.0
 ```
 
-满足以上三项，即认为最小 LLM 动作规划 + Franka 90° 仿真闭环可用。
+满足以上三项，即认为最小 LLM 动作规划 + Franka 2.0 rad 仿真闭环可用。

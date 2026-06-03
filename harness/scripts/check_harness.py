@@ -58,10 +58,9 @@ def main() -> int:
 
     require("P0: spec 与 harness 设计阶段" in plan_state, "missing P0 plan history", failures)
     require("Current step:" in plan_state, "missing current plan step", failures)
-    require("target_rad: -1.57079632679" in skills, "missing left 90 degree joint target", failures)
-    require("target_rad: 1.57079632679" in skills, "missing right 90 degree joint target", failures)
-    require("target_degrees: -90" in skills, "missing left target degrees", failures)
-    require("target_degrees: 90" in skills, "missing right target degrees", failures)
+    require("target_rad: -2.0" in skills, "missing left 2 rad joint target", failures)
+    require("target_rad: 2.0" in skills, "missing right 2 rad joint target", failures)
+    require("reset_steps: 60" in skills, "missing reset step duration", failures)
     require("target_rad: 0.0" in skills, "missing reset joint target", failures)
     require("visible_reasoning" in prompt_contract, "missing visible_reasoning prompt contract", failures)
     require("action_tokens" in prompt_contract, "missing action_tokens prompt contract", failures)

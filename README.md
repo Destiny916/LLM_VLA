@@ -47,5 +47,43 @@ project files or commits.
 ## Isaac Sim Smoke Test
 
 ```powershell
-D:\il\env\Scripts\python.exe -B sim\run_franka_sequence.py --headless --max_steps 120 --sequence "left reset right reset"
+D:\il\env\Scripts\python.exe -B sim\run_franka_sequence.py --headless --max_steps 180 --sequence "left reset right reset"
+```
+
+## Persistent Isaac Sim Server
+
+Start the server in one terminal:
+
+```powershell
+D:\il\env\Scripts\python.exe -B sim\run_franka_server.py `
+  --host 127.0.0.1 `
+  --port 8765
+```
+
+It accepts UTF-8 JSON-line requests such as:
+
+```json
+{"sequence":"left reset right reset"}
+```
+
+## Interactive LLM Control CLI
+
+Start the CLI in a second terminal after the server is listening:
+
+```powershell
+$env:LLM_BASE_URL="https://api.deepseek.com"
+$env:LLM_API_KEY="..."
+$env:LLM_MODEL="deepseek-v4-pro"
+
+python -m llm_vla.cli_control `
+  --host 127.0.0.1 `
+  --port 8765
+```
+
+Then type natural-language commands such as:
+
+```text
+表示 01
+右转一次
+exit
 ```

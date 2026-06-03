@@ -2,6 +2,12 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .env
+.env.*
+!.env.example
+local/
+*.local.ps1
+运行代码.md
+*.run.md
 logs/
 *.usd
 *.usda
