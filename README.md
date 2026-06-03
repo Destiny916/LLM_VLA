@@ -25,7 +25,9 @@ python -m unittest discover -s tests -v
 ## Mock Planner
 
 ```powershell
-python -m llm_vla.plan "输出 01 的动作" --mock-output "left reset right reset"
+python -m llm_vla.plan "输出 01 的动作" `
+  --mock-output '{"visible_reasoning":"用户要求表示 01；0 映射为 left，1 映射为 right。","action_tokens":"left reset right reset"}' `
+  --show-details
 ```
 
 ## OpenAI-Compatible Planner
@@ -33,11 +35,14 @@ python -m llm_vla.plan "输出 01 的动作" --mock-output "left reset right res
 Set:
 
 ```powershell
-$env:LLM_BASE_URL="https://api.openai.com/v1"
+$env:LLM_BASE_URL="https://api.deepseek.com"
 $env:LLM_API_KEY="..."
-$env:LLM_MODEL="..."
-python -m llm_vla.plan "输出 01 的动作"
+$env:LLM_MODEL="deepseek-v4-pro"
+python -m llm_vla.plan "输出 01 的动作" --show-details
 ```
+
+The API key must be provided through the environment only. Do not write it into
+project files or commits.
 
 ## Isaac Sim Smoke Test
 

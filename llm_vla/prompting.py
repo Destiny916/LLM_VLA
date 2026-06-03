@@ -28,6 +28,8 @@ def build_system_prompt(harness_context: str) -> str:
         - 0 -> left reset
         - 1 -> right reset
         - 01 -> left reset right reset
+        - 如果用户在当前请求中显式指定临时映射，例如“右转为0、左转为1”，则该用户显式映射优先于默认二进制映射。
+        - 用户显式映射只改变语义解释，不改变最终可执行 token；action_tokens 仍只能使用 left、right、reset。
 
         硬性规则：
         - 每个 left 后必须立刻跟 reset。

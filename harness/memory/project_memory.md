@@ -4,9 +4,14 @@
 - Goal: LLM CLI natural-language control for Isaac Sim Franka arm simulation.
 - API style: OpenAI-compatible chat completions.
 - Environment variables: `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`.
+- Default API endpoint for task 3: `https://api.deepseek.com`.
+- Default API model for task 3: `deepseek-v4-pro`.
+- Never write API keys into files or commits.
 - Valid planner output tokens: `left`, `right`, `reset`.
 - Final model output must use action names, not `0` or `1`.
 - `left` maps to binary `0`; `right` maps to binary `1`.
+- User-explicit temporary mapping overrides the default binary mapping for that request only.
+- Mapping override affects semantic interpretation only; execution still uses validated `left`, `right`, and `reset` tokens.
 - Every `left` or `right` must be followed by `reset`.
 - Simulation asset: IsaacLab built-in `FRANKA_PANDA_CFG`.
 - Controlled joint: `panda_joint1`.
@@ -15,5 +20,8 @@
 - Current architecture target: a CLI window calls a real LLM API, shows API raw output, visible reasoning summary, API token result, local validation result, and sends validated tokens to a persistent Isaac Sim server window.
 - Visible reasoning summary is user-facing explanation only; it is not hidden chain-of-thought and must not be used as the execution source.
 - Execution source is always validated `action_tokens`.
+- Task 3 status: planner parses LLM JSON, exposes raw output, visible reasoning, API token result, validates `action_tokens`, and retries repair once on invalid output.
+- Explicit user mapping priority: if a user says a temporary mapping such as `right=0` and `left=1`, that request-specific mapping overrides the default binary mapping for semantic interpretation only.
+- Task 4 status: `llm_vla.ipc` encodes and decodes UTF-8 JSON-line requests and responses; request sequences are validated before transport.
 - Commit branch: `codex`.
 - Do not commit automatically. Ask the user before every commit.

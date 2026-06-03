@@ -14,6 +14,11 @@ Action rules:
 - `0 -> left reset`
 - `1 -> right reset`
 - `01 -> left reset right reset`
+- If the user explicitly defines a temporary mapping such as `right means 0` and
+  `left means 1`, that explicit user mapping has priority over the default
+  binary mapping for that request only.
+- Explicit mapping override changes semantic interpretation only. The executable
+  output must still use `left`, `right`, and `reset` action tokens.
 - Every `left` or `right` must be followed immediately by `reset`.
 - `reset` may not be the first action.
 

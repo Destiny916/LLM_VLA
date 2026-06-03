@@ -11,7 +11,7 @@ from typing import Protocol
 
 from .actions import sequence_to_text, validate_sequence
 from .harness import read_core_harness
-from .prompting import build_system_prompt
+from .prompting import build_repair_prompt, build_system_prompt
 
 
 class ChatClient(Protocol):
@@ -35,6 +35,13 @@ class MockClient:
 
     def complete(self, messages: list[dict[str, str]]) -> str:
         return self.output
+
+
+@dataclass(frozen=True)
+class PlanningResult:
+    raw_output: str
+    visible_reasoning: str
+    action_tokens: str
 
 
 @dataclass
@@ -99,8 +106,48 @@ class OpenAICompatiblePlanner:
             raise EnvironmentError("missing required environment variables: " + ", ".join(missing))
         return cls(OpenAIChatClient(base_url=base_url, api_key=api_key, model=model))
 
-    def plan(self, user_request: str) -> str:
+    def plan_details(self, user_request: str, *, repair: bool = True) -> PlanningResult:
         messages = build_prompt_messages(user_request)
         raw_output = self.client.complete(messages)
-        tokens = validate_sequence(raw_output)
-        return sequence_to_text(tokens)
+        try:
+            return parse_planning_result(raw_output)
+        except ValueError as exc:
+            if not repair:
+                raise
+            repair_messages = messages + [
+                {"role": "assistant", "content": raw_output},
+                {"role": "user", "content": build_repair_prompt(raw_output, str(exc))},
+            ]
+            repaired_output = self.client.complete(repair_messages)
+            return parse_planning_result(repaired_output)
+
+    def plan(self, user_request: str) -> str:
+        return self.plan_details(user_request).action_tokens
+
+
+def parse_planning_result(raw_output: str) -> PlanningResult:
+    """Parse and validate the structured LLM planner response."""
+    try:
+        parsed = json.loads(raw_output)
+    except json.JSONDecodeError as exc:
+        raise ValueError("LLM output must be a JSON object") from exc
+
+    if not isinstance(parsed, dict):
+        raise ValueError("LLM output must be a JSON object")
+    required_keys = {"visible_reasoning", "action_tokens"}
+    if set(parsed) != required_keys:
+        raise ValueError("LLM output must contain only visible_reasoning and action_tokens")
+
+    visible_reasoning = parsed["visible_reasoning"]
+    action_tokens = parsed["action_tokens"]
+    if not isinstance(visible_reasoning, str) or not visible_reasoning.strip():
+        raise ValueError("visible_reasoning must be a non-empty string")
+    if not isinstance(action_tokens, str):
+        raise ValueError("action_tokens must be a string")
+
+    tokens = validate_sequence(action_tokens)
+    return PlanningResult(
+        raw_output=raw_output.strip(),
+        visible_reasoning=visible_reasoning.strip(),
+        action_tokens=sequence_to_text(tokens),
+    )

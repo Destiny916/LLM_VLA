@@ -14,6 +14,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--mock-output",
         help="Use this raw model output instead of calling an OpenAI-compatible API.",
     )
+    parser.add_argument(
+        "--show-details",
+        action="store_true",
+        help="Print raw API output, visible reasoning, validated API token, and local validation status.",
+    )
     return parser
 
 
@@ -23,7 +28,14 @@ def main() -> int:
         planner = OpenAICompatiblePlanner(client=MockClient(args.mock_output))
     else:
         planner = OpenAICompatiblePlanner.from_environment()
-    print(planner.plan(args.request))
+    if args.show_details:
+        result = planner.plan_details(args.request)
+        print(f"API 原始输出: {result.raw_output}")
+        print(f"思考摘要: {result.visible_reasoning}")
+        print(f"API token: {result.action_tokens}")
+        print("本地校验: ok")
+    else:
+        print(planner.plan(args.request))
     return 0
 
 

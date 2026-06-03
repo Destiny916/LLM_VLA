@@ -38,6 +38,7 @@
 - CLI 必须显示 API 原始输出。
 - CLI 必须显示 API token 结果。
 - “可见决策摘要”只是一句给用户看的简短说明，不要求也不依赖隐藏链式思考。
+- 用户在单次请求中显式指定动作语义映射时，例如“右转为0、左转为1”，该临时映射优先于默认 `left=0/right=1`，但只影响本次语义解释。
 - 最终进入仿真的内容必须是本地校验后的动作 token，不是解释文本、摘要或原始 JSON。
 - 本地仍保留最后一道 `validate_sequence()` 校验，防止非法 token 进入仿真。
 
@@ -286,6 +287,7 @@ visible_reasoning 只写一句简短决策摘要，不要写隐藏链式思考�
 - CLI 接入真实大语言模型 API。
 - LLM 负责复杂自然语言理解。
 - LLM 可以直接决定仿真动作 token 序列。
+- 用户显式临时映射优先于默认二进制映射，但不能改变执行 token 合同。
 - CLI 必须显示 API 原始输出。
 - CLI 必须显示可见决策摘要。
 - CLI 必须显示 API token 结果。
@@ -302,9 +304,9 @@ visible_reasoning 只写一句简短决策摘要，不要写隐藏链式思考�
 | P0 | 已完成 | harness 与动作合同设计 |
 | P1 | 已完成 | Franka 左转、右转、复位动作实现 |
 | P2 | 已完成 | LLM CLI 控制窗口设计与 prompt 规则模块，包含 API 原始输出、可见决策摘要和 API token 显示 |
-| P3 | 下一步 | 真实大语言模型 API 接入 |
-| P4 | 待实现 | 仿真常驻服务端 |
-| P5 | 待实现 | LLM CLI 与仿真服务端通信 |
+| P3 | 已完成 | 真实大语言模型 API 接入、JSON 解析、详情显示和一次 repair |
+| P4 | 已完成 | IPC 协议模块 |
+| P5 | 下一步 | 仿真常驻服务端 |
 | P6 | 待实现 | 复杂自然语言输入集成验证 |
 
 ## 实施计划
@@ -374,7 +376,7 @@ def build_repair_prompt(previous_output: str, error: str) -> str:
 D:\il\env\Scripts\python.exe -m pytest tests\test_prompting.py -v
 ```
 
-### 任务 3：接入真实大语言模型 API
+### 任务 3：接入真实大语言模型 API（已完成）
 
 **目标：** CLI 使用真实 OpenAI-compatible API，而不是 mock。
 
@@ -410,7 +412,23 @@ LLM_MODEL
 - 不把 API key 写入代码。
 - 不把真实 API 调用放进默认 pytest。
 
-### 任务 4：新增 IPC 协议模块
+**完成内容：**
+
+- `OpenAICompatiblePlanner.from_environment()` 使用 `LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL`。
+- 支持 DeepSeek OpenAI-compatible endpoint：`https://api.deepseek.com`。
+- 支持模型：`deepseek-v4-pro`。
+- LLM 返回 JSON 后解析 `visible_reasoning` 和 `action_tokens`。
+- 只把 `action_tokens` 交给 `validate_sequence()`。
+- 校验失败时最多使用 repair prompt 重试一次。
+- `python -m llm_vla.plan ... --show-details` 可以打印 API 原始输出、思考摘要、API token 和本地校验结果。
+
+**验证：**
+
+```powershell
+D:\il\env\Scripts\python.exe -m pytest tests\test_planner.py tests\test_plan_cli.py -v
+```
+
+### 任务 4：新增 IPC 协议模块（已完成）
 
 **目标：** 定义 CLI 与仿真服务端之间的 JSON 行协议。
 
@@ -433,6 +451,20 @@ def encode_response(status: str, **fields) -> bytes:
 
 def decode_response(data: bytes) -> dict:
     ...
+```
+
+**完成内容：**
+
+- `llm_vla/ipc.py`
+- `tests/test_ipc.py`
+- UTF-8 JSON-line 请求与响应编解码。
+- request 的 `sequence` 在编码和解码时都经过 `validate_sequence()`。
+- response 的 `status` 只允许 `ok` 或 `error`。
+
+**验证：**
+
+```powershell
+D:\il\env\Scripts\python.exe -m pytest tests\test_ipc.py -v
 ```
 
 ### 任务 5：新增仿真服务端
