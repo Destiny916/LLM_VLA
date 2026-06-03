@@ -11,6 +11,7 @@ from typing import Protocol
 
 from .actions import sequence_to_text, validate_sequence
 from .harness import read_core_harness
+from .prompting import build_system_prompt
 
 
 class ChatClient(Protocol):
@@ -21,13 +22,7 @@ class ChatClient(Protocol):
 def build_prompt_messages(user_request: str) -> list[dict[str, str]]:
     """Build messages from harness context and the user request."""
     harness_context = read_core_harness()
-    system_content = (
-        "You are the LLM_VLA robot action planner.\n"
-        "Read and obey the harness below.\n"
-        "You must output only a space-separated sequence of allowed action names.\n"
-        "Do not output explanations, digits, JSON, punctuation, or Chinese text.\n\n"
-        f"{harness_context}"
-    )
+    system_content = build_system_prompt(harness_context)
     return [
         {"role": "system", "content": system_content},
         {"role": "user", "content": user_request},

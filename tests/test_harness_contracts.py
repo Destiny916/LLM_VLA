@@ -14,6 +14,7 @@ class HarnessContractTests(unittest.TestCase):
             "README.md",
             "rules/rule1_harness_read.md",
             "rules/output_contract.md",
+            "rules/llm_prompt_contract.md",
             "skills/franka_arm_actions.yaml",
             "memory/project_memory.md",
             "plan_state.md",

@@ -11,6 +11,7 @@ This harness records the rules, memory, skills, and current plan state for
 - `harness/README.md`
 - `harness/rules/rule1_harness_read.md`
 - `harness/rules/output_contract.md`
+- `harness/rules/llm_prompt_contract.md`
 - `harness/skills/franka_arm_actions.yaml`
 - `harness/memory/project_memory.md`
 - `harness/plan_state.md`

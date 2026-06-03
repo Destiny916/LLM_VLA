@@ -301,8 +301,8 @@ visible_reasoning 只写一句简短决策摘要，不要写隐藏链式思考�
 | --- | --- | --- |
 | P0 | 已完成 | harness 与动作合同设计 |
 | P1 | 已完成 | Franka 左转、右转、复位动作实现 |
-| P2 | 当前修正 | LLM CLI 控制窗口设计，包含 API 原始输出、可见决策摘要和 API token 显示 |
-| P3 | 待实现 | 真实大语言模型 API 接入 |
+| P2 | 已完成 | LLM CLI 控制窗口设计与 prompt 规则模块，包含 API 原始输出、可见决策摘要和 API token 显示 |
+| P3 | 下一步 | 真实大语言模型 API 接入 |
 | P4 | 待实现 | 仿真常驻服务端 |
 | P5 | 待实现 | LLM CLI 与仿真服务端通信 |
 | P6 | 待实现 | 复杂自然语言输入集成验证 |
@@ -334,7 +334,7 @@ visible_reasoning 只写一句简短决策摘要，不要写隐藏链式思考�
 python harness\scripts\check_harness.py
 ```
 
-### 任务 2：新增 LLM Prompt 规则模块
+### 任务 2：新增 LLM Prompt 规则模块（已完成）
 
 **目标：** 把系统 prompt、few-shot 示例、结构化响应格式和修正 prompt 固化为代码或 harness 文本。
 
@@ -361,6 +361,18 @@ def build_repair_prompt(previous_output: str, error: str) -> str:
 - system prompt 必须说明 `visible_reasoning` 是简短可见决策摘要，不是隐藏链式思考。
 - system prompt 必须说明 `0 -> left reset`、`1 -> right reset`。
 - repair prompt 必须包含上一次错误和重新输出要求。
+
+**完成文件：**
+
+- `harness/rules/llm_prompt_contract.md`
+- `llm_vla/prompting.py`
+- `tests/test_prompting.py`
+
+**验证：**
+
+```powershell
+D:\il\env\Scripts\python.exe -m pytest tests\test_prompting.py -v
+```
 
 ### 任务 3：接入真实大语言模型 API
 
