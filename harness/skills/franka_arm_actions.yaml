@@ -1,0 +1,26 @@
+robot:
+  name: franka_panda
+  source: IsaacLab built-in FRANKA_PANDA_CFG
+  controlled_joint: panda_joint1
+
+execution:
+  action_steps: 30
+  max_default_steps: 120
+
+actions:
+  left:
+    binary_meaning: "0"
+    joint: panda_joint1
+    target_rad: -1.57079632679
+    target_degrees: -90
+    requires_following_reset: true
+  right:
+    binary_meaning: "1"
+    joint: panda_joint1
+    target_rad: 1.57079632679
+    target_degrees: 90
+    requires_following_reset: true
+  reset:
+    joint: panda_joint1
+    target_rad: 0.0
+    requires_following_reset: false
