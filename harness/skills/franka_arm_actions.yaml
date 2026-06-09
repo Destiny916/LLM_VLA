@@ -1,27 +1,60 @@
 robot:
   name: franka_panda
   source: IsaacLab built-in FRANKA_PANDA_CFG
-  controlled_joint: panda_joint1
+  primary_joint: panda_joint1
+  unlocked_joints:
+    - panda_joint1
+    - panda_joint2
+  locked_joints_policy: keep IsaacLab default joint targets for every joint except panda_joint1 and panda_joint2
 
 execution:
   action_steps: 30
   reset_steps: 60
-  max_default_steps: 180
+  max_default_steps: 240
 
 actions:
-  left:
+  left_2rad:
     binary_meaning: "0"
     joint: panda_joint1
     target_rad: -2.0
     target_degrees: -114.591559
-    requires_following_reset: true
-  right:
+    requires_following_reset: false
+  right_2rad:
     binary_meaning: "1"
     joint: panda_joint1
     target_rad: 2.0
     target_degrees: 114.591559
-    requires_following_reset: true
-  reset:
-    joint: panda_joint1
-    target_rad: 0.0
     requires_following_reset: false
+  lift_up:
+    state_change:
+      arm_lift: up
+    joint_targets:
+      panda_joint2: -0.8
+    requires_put_down_before_reset: true
+  put_down:
+    state_change:
+      arm_lift: down
+    joint_targets:
+      panda_joint2: 0.0
+    equivalent_to_reset: false
+  reset:
+    task_boundary: true
+    joint_targets:
+      panda_joint1: 0.0
+      panda_joint2: 0.0
+    locked_joints: keep_default
+  hold_reset:
+    idle_hold: true
+    joint_targets:
+      panda_joint1: 0.0
+      panda_joint2: 0.0
+    locked_joints: keep_default
+  stop:
+    control_only: true
+    standalone_only: true
+
+removed_actions:
+  left_circle:
+    reason: removed because full-circle display is not distinct from repeated left actions in the simplified two-joint demo
+  right_circle:
+    reason: removed because full-circle display is not distinct from repeated right actions in the simplified two-joint demo

@@ -5,7 +5,7 @@ import unittest
 
 class PlanCliTests(unittest.TestCase):
     def test_show_details_prints_raw_reasoning_tokens_and_validation(self):
-        raw_output = '{"visible_reasoning":"用户要求表示 01。","action_tokens":"left reset right reset"}'
+        raw_output = '{"visible_reasoning":"用户要求表示 01。","action_tokens":"left_2rad right_2rad reset"}'
 
         result = subprocess.run(
             [
@@ -25,7 +25,7 @@ class PlanCliTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertIn("API 原始输出: " + raw_output, result.stdout)
         self.assertIn("思考摘要: 用户要求表示 01。", result.stdout)
-        self.assertIn("API token: left reset right reset", result.stdout)
+        self.assertIn("API token: left_2rad right_2rad reset", result.stdout)
         self.assertIn("本地校验: ok", result.stdout)
 
 

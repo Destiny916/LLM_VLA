@@ -14,7 +14,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from llm_vla.server import serve_forever  # noqa: E402
-from llm_vla.sim_actions import ACTION_STEPS, RESET_STEPS, FRANKA_JOINT_NAME, joint_targets_for_sequence  # noqa: E402
+from llm_vla.sim_actions import ACTION_STEPS, RESET_STEPS, joint_targets_for_sequence  # noqa: E402
 from llm_vla.sim_runtime import should_force_exit_after_run  # noqa: E402
 
 
@@ -69,15 +69,14 @@ class FrankaSequenceExecutor:
         self,
         sim: sim_utils.SimulationContext,
         robot: Articulation,
-        joint_id: int,
         action_steps: int,
         reset_steps: int,
     ):
         self.sim = sim
         self.robot = robot
-        self.joint_id = joint_id
         self.action_steps = action_steps
         self.reset_steps = reset_steps
+        self.joint_ids_by_name: dict[str, int] = {}
 
     def __call__(self, sequence: str) -> None:
         targets = joint_targets_for_sequence(
@@ -85,15 +84,35 @@ class FrankaSequenceExecutor:
             action_steps=self.action_steps,
             reset_steps=self.reset_steps,
         )
-        for token, target_rad, step_count in targets:
-            for _ in range(step_count):
+        self._ensure_joint_ids(
+            {
+                joint_name
+                for target_step in targets
+                for joint_name in target_step.joint_targets
+            }
+        )
+        for target_step in targets:
+            for _ in range(target_step.step_count):
                 joint_target = self.robot.data.default_joint_pos.clone()
-                joint_target[:, self.joint_id] = torch.tensor(target_rad, device=self.robot.device)
+                for joint_name, target_rad in target_step.joint_targets.items():
+                    joint_target[:, self.joint_ids_by_name[joint_name]] = torch.tensor(
+                        target_rad,
+                        device=self.robot.device,
+                    )
                 self.robot.set_joint_position_target(joint_target)
                 self.robot.write_data_to_sim()
                 self.sim.step()
                 self.robot.update(self.sim.get_physics_dt())
-            print(f"{token} {target_rad}", flush=True)
+            print(f"{target_step.token} {target_step.joint_targets}", flush=True)
+
+    def _ensure_joint_ids(self, joint_names: set[str]) -> None:
+        for joint_name in sorted(joint_names):
+            if joint_name in self.joint_ids_by_name:
+                continue
+            joint_ids = self.robot.find_joints(joint_name)[0]
+            if not joint_ids:
+                raise RuntimeError(f"joint not found: {joint_name}")
+            self.joint_ids_by_name[joint_name] = joint_ids[0]
 
 
 def create_executor() -> FrankaSequenceExecutor:
@@ -104,17 +123,12 @@ def create_executor() -> FrankaSequenceExecutor:
     robot = design_scene()
     sim.reset()
 
-    joint_ids = robot.find_joints(FRANKA_JOINT_NAME)[0]
-    if not joint_ids:
-        raise RuntimeError(f"joint not found: {FRANKA_JOINT_NAME}")
-    joint_id = joint_ids[0]
-
     joint_pos = robot.data.default_joint_pos.clone()
     joint_vel = robot.data.default_joint_vel.clone()
     robot.write_joint_state_to_sim(joint_pos, joint_vel)
     robot.reset()
 
-    return FrankaSequenceExecutor(sim, robot, joint_id, args_cli.action_steps, args_cli.reset_steps)
+    return FrankaSequenceExecutor(sim, robot, args_cli.action_steps, args_cli.reset_steps)
 
 
 def main() -> int:

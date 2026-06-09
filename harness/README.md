@@ -30,6 +30,20 @@ python harness\scripts\check_harness.py
 python -m unittest discover -s tests -v
 ```
 
+## RAG Knowledge
+
+扩展版设计新增 `harness/rag` 作为后续 RAG 模块的知识源。当前任务 1 已建立：
+
+- `harness/rag/action_catalog.md`
+- `harness/rag/action_examples.md`
+- `harness/rag/task_rules.md`
+- `harness/rag/state_rules.md`
+- `harness/rag/safety_rules.md`
+- `harness/rag/conversation_memory.md`
+- `harness/rag/two_joint_policy.md`
+
+这些文件记录扩展版动作 token、任务级复位、上举/放下状态语义、idle hold、安全边界和会话记忆。后续实现 RAG 前，仍以现有代码合同为运行事实；RAG 文件是下一阶段扩展设计知识源。
+
 ## Change Control
 
 - 不自动提交。
