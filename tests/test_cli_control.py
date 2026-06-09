@@ -12,9 +12,9 @@ class FakePlanner:
     def plan_details(self, request):
         self.requests.append(request)
         return PlanningResult(
-            raw_output='{"visible_reasoning":"用户要求左转。","action_tokens":"left reset"}',
-            visible_reasoning="用户要求左转。",
-            action_tokens="left reset",
+            raw_output='{"visible_reasoning":"用户要求左转 2rad。","action_tokens":"left_2rad reset"}',
+            visible_reasoning="用户要求左转 2rad。",
+            action_tokens="left_2rad reset",
         )
 
 
@@ -37,12 +37,12 @@ class CliControlTests(unittest.TestCase):
 
         self.assertEqual(0, exit_code)
         self.assertEqual(["左转一次"], planner.requests)
-        self.assertEqual([("127.0.0.1", 8765, "left reset")], sent)
+        self.assertEqual([("127.0.0.1", 8765, "left_2rad reset")], sent)
         text = output.getvalue()
         self.assertIn("用户输入: 左转一次", text)
-        self.assertIn('API 原始输出: {"visible_reasoning":"用户要求左转。","action_tokens":"left reset"}', text)
-        self.assertIn("思考摘要: 用户要求左转。", text)
-        self.assertIn("API token: left reset", text)
+        self.assertIn('API 原始输出: {"visible_reasoning":"用户要求左转 2rad。","action_tokens":"left_2rad reset"}', text)
+        self.assertIn("思考摘要: 用户要求左转 2rad。", text)
+        self.assertIn("API token: left_2rad reset", text)
         self.assertIn("本地校验: ok", text)
         self.assertIn("仿真结果: ok", text)
         self.assertIn("退出 CLI", text)

@@ -11,18 +11,18 @@ class ServerTests(unittest.TestCase):
         executed = []
 
         response = handle_request(
-            encode_request("left reset"),
+            encode_request("left_2rad reset"),
             execute_sequence=executed.append,
         )
 
-        self.assertEqual(["left reset"], executed)
-        self.assertEqual({"status": "ok", "executed": "left reset"}, decode_response(response))
+        self.assertEqual(["left_2rad reset"], executed)
+        self.assertEqual({"status": "ok", "executed": "left_2rad reset"}, decode_response(response))
 
     def test_handle_request_returns_error_when_executor_fails(self):
         def fail(_sequence):
             raise RuntimeError("sim failed")
 
-        response = handle_request(encode_request("left reset"), execute_sequence=fail)
+        response = handle_request(encode_request("left_2rad reset"), execute_sequence=fail)
 
         decoded = decode_response(response)
         self.assertEqual("error", decoded["status"])
@@ -32,14 +32,14 @@ class ServerTests(unittest.TestCase):
         executed = []
 
         response = handle_request(
-            b'{"sequence":"left right"}\n',
+            b'{"sequence":"left_2rad right_2rad"}\n',
             execute_sequence=executed.append,
         )
 
         decoded = decode_response(response)
         self.assertEqual([], executed)
         self.assertEqual("error", decoded["status"])
-        self.assertIn("left must be followed by reset", decoded["message"])
+        self.assertIn("task sequence must end with reset", decoded["message"])
 
     def test_serve_forever_handles_one_json_line_request(self):
         executed = []
@@ -65,13 +65,13 @@ class ServerTests(unittest.TestCase):
         self.assertTrue(ready.wait(timeout=2.0))
 
         with socket.create_connection((host, port), timeout=2.0) as client:
-            client.sendall(encode_request("right reset"))
+            client.sendall(encode_request("right_2rad reset"))
             response = client.recv(4096)
 
         thread.join(timeout=2.0)
         self.assertFalse(thread.is_alive())
-        self.assertEqual(["right reset"], executed)
-        self.assertEqual({"status": "ok", "executed": "right reset"}, decode_response(response))
+        self.assertEqual(["right_2rad reset"], executed)
+        self.assertEqual({"status": "ok", "executed": "right_2rad reset"}, decode_response(response))
 
 
 if __name__ == "__main__":

@@ -29,16 +29,16 @@ class ClientTests(unittest.TestCase):
         thread.start()
         self.assertTrue(ready.wait(timeout=2.0))
 
-        response = send_sequence(host, port, "left reset", timeout=2.0)
+        response = send_sequence(host, port, "left_2rad reset", timeout=2.0)
 
         thread.join(timeout=2.0)
         self.assertFalse(thread.is_alive())
-        self.assertEqual(["left reset"], received)
-        self.assertEqual({"status": "ok", "executed": "left reset"}, response)
+        self.assertEqual(["left_2rad reset"], received)
+        self.assertEqual({"status": "ok", "executed": "left_2rad reset"}, response)
 
     def test_send_sequence_rejects_invalid_sequence_before_network(self):
         with self.assertRaises(ValueError):
-            send_sequence("127.0.0.1", 1, "left right", timeout=0.1)
+            send_sequence("127.0.0.1", 1, "left_2rad right_2rad", timeout=0.1)
 
 
 if __name__ == "__main__":

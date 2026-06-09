@@ -13,13 +13,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from llm_vla.sim_actions import FRANKA_JOINT_NAME, joint_targets_for_sequence  # noqa: E402
+from llm_vla.sim_actions import joint_targets_for_sequence  # noqa: E402
 from llm_vla.sim_runtime import should_force_exit_after_run  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run LLM_VLA action tokens on a Franka Panda.")
-    parser.add_argument("--sequence", required=True, help='Action sequence, for example: "left reset right reset".')
+    parser.add_argument("--sequence", required=True, help='Action sequence, for example: "left_2rad right_2rad reset".')
     parser.add_argument("--max_steps", type=int, default=180, help="Maximum simulation steps before stopping.")
     parser.add_argument("--action_steps", type=int, default=30, help="Simulation steps for each action token.")
     parser.add_argument("--reset_steps", type=int, default=60, help="Simulation steps for each reset token.")
@@ -63,6 +63,16 @@ def design_scene() -> Articulation:
     return Articulation(cfg=robot_cfg)
 
 
+def resolve_joint_ids(robot: Articulation, joint_names: set[str]) -> dict[str, int]:
+    joint_ids_by_name: dict[str, int] = {}
+    for joint_name in sorted(joint_names):
+        joint_ids = robot.find_joints(joint_name)[0]
+        if not joint_ids:
+            raise RuntimeError(f"joint not found: {joint_name}")
+        joint_ids_by_name[joint_name] = joint_ids[0]
+    return joint_ids_by_name
+
+
 def run_sequence() -> None:
     targets = joint_targets_for_sequence(
         args_cli.sequence,
@@ -77,10 +87,14 @@ def run_sequence() -> None:
     robot = design_scene()
     sim.reset()
 
-    joint_ids = robot.find_joints(FRANKA_JOINT_NAME)[0]
-    if not joint_ids:
-        raise RuntimeError(f"joint not found: {FRANKA_JOINT_NAME}")
-    joint_id = joint_ids[0]
+    joint_ids_by_name = resolve_joint_ids(
+        robot,
+        {
+            joint_name
+            for target_step in targets
+            for joint_name in target_step.joint_targets
+        },
+    )
 
     joint_pos = robot.data.default_joint_pos.clone()
     joint_vel = robot.data.default_joint_vel.clone()
@@ -88,19 +102,20 @@ def run_sequence() -> None:
     robot.reset()
 
     executed_steps = 0
-    for token, target_rad, step_count in targets:
+    for target_step in targets:
         if executed_steps >= args_cli.max_steps:
             break
-        steps_to_run = min(step_count, args_cli.max_steps - executed_steps)
+        steps_to_run = min(target_step.step_count, args_cli.max_steps - executed_steps)
         for _ in range(steps_to_run):
             joint_target = robot.data.default_joint_pos.clone()
-            joint_target[:, joint_id] = torch.tensor(target_rad, device=robot.device)
+            for joint_name, target_rad in target_step.joint_targets.items():
+                joint_target[:, joint_ids_by_name[joint_name]] = torch.tensor(target_rad, device=robot.device)
             robot.set_joint_position_target(joint_target)
             robot.write_data_to_sim()
             sim.step()
             robot.update(sim.get_physics_dt())
             executed_steps += 1
-        print(f"{token} {target_rad}")
+        print(f"{target_step.token} {target_step.joint_targets}")
 
 
 if __name__ == "__main__":
