@@ -73,6 +73,87 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(["right_2rad reset"], executed)
         self.assertEqual({"status": "ok", "executed": "right_2rad reset"}, decode_response(response))
 
+    def test_serve_forever_calls_idle_func_without_requests(self):
+        idle_count = 0
+        stop_event = threading.Event()
+        ready = threading.Event()
+        host = "127.0.0.1"
+
+        def idle():
+            nonlocal idle_count
+            idle_count += 1
+            if idle_count >= 3:
+                stop_event.set()
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+            probe.bind((host, 0))
+            port = probe.getsockname()[1]
+
+        thread = threading.Thread(
+            target=serve_forever,
+            kwargs={
+                "host": host,
+                "port": port,
+                "execute_sequence": lambda _sequence: None,
+                "ready_event": ready,
+                "idle_func": idle,
+                "poll_interval": 0.01,
+                "stop_event": stop_event,
+            },
+            daemon=True,
+        )
+        thread.start()
+        self.assertTrue(ready.wait(timeout=2.0))
+
+        thread.join(timeout=2.0)
+        self.assertFalse(thread.is_alive())
+        self.assertGreaterEqual(idle_count, 3)
+
+    def test_serve_forever_resumes_idle_after_request(self):
+        executed = []
+        idle_after_request = threading.Event()
+        stop_event = threading.Event()
+        ready = threading.Event()
+        host = "127.0.0.1"
+
+        def idle():
+            if executed:
+                idle_after_request.set()
+                stop_event.set()
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+            probe.bind((host, 0))
+            port = probe.getsockname()[1]
+
+        thread = threading.Thread(
+            target=serve_forever,
+            kwargs={
+                "host": host,
+                "port": port,
+                "execute_sequence": executed.append,
+                "ready_event": ready,
+                "idle_func": idle,
+                "poll_interval": 0.01,
+                "stop_event": stop_event,
+            },
+            daemon=True,
+        )
+        thread.start()
+        self.assertTrue(ready.wait(timeout=2.0))
+
+        with socket.create_connection((host, port), timeout=2.0) as client:
+            client.sendall(encode_request("left_2rad reset hold_reset"))
+            response = client.recv(4096)
+
+        thread.join(timeout=2.0)
+        self.assertFalse(thread.is_alive())
+        self.assertTrue(idle_after_request.is_set())
+        self.assertEqual(["left_2rad reset hold_reset"], executed)
+        self.assertEqual(
+            {"status": "ok", "executed": "left_2rad reset hold_reset"},
+            decode_response(response),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

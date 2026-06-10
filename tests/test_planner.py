@@ -36,6 +36,62 @@ class PlannerTests(unittest.TestCase):
         self.assertEqual("用户要求右转 2rad 后复位。", result.visible_reasoning)
         self.assertEqual("right_2rad reset", result.action_tokens)
 
+    def test_task_plan_output_expands_to_action_tokens(self):
+        raw_output = """
+        {
+          "visible_reasoning": "用户要泡浓咖啡。",
+          "intent": "泡浓咖啡",
+          "task_operations": [
+            {
+              "operation": "add",
+              "task_id": "task_1",
+              "description": "泡浓咖啡",
+              "subtasks": [
+                {"description": "上举", "action_tokens": "lift_up"},
+                {"description": "左转后右转两次", "action_tokens": "left_2rad right_2rad right_2rad"},
+                {"description": "放下", "action_tokens": "put_down"}
+              ],
+              "reset_after_task": true
+            }
+          ]
+        }
+        """
+        planner = OpenAICompatiblePlanner(client=MockClient(raw_output))
+
+        result = planner.plan_details("泡浓咖啡")
+
+        self.assertEqual("泡浓咖啡", result.intent)
+        self.assertEqual("lift_up left_2rad right_2rad right_2rad put_down reset hold_reset", result.action_tokens)
+
+    def test_task_plan_reference_operation_uses_known_conversation_tasks(self):
+        raw_output = """
+        {
+          "visible_reasoning": "把已有任务改成右转。",
+          "intent": "修改任务",
+          "task_operations": [
+            {
+              "operation": "modify",
+              "task_id": "task_1",
+              "description": "右转握手",
+              "subtasks": [
+                {"description": "右转", "action_tokens": "right_2rad"}
+              ],
+              "reset_after_task": true
+            }
+          ]
+        }
+        """
+        planner = OpenAICompatiblePlanner(client=MockClient(raw_output))
+
+        result = planner.plan_details(
+            "把刚才的任务改成右转",
+            existing_task_ids={"task_1"},
+            current_task_id="task_1",
+            conversation_context="当前任务队列: task_1: 左转",
+        )
+
+        self.assertEqual("right_2rad reset hold_reset", result.action_tokens)
+
     def test_mock_planner_rejects_invalid_model_output(self):
         planner = OpenAICompatiblePlanner(
             client=MockClient('{"visible_reasoning":"错误地输出数字。","action_tokens":"0 1"}')
@@ -94,6 +150,15 @@ class PlannerTests(unittest.TestCase):
         self.assertIn("reset", system_content)
         self.assertIn("Rule 1", system_content)
         self.assertEqual("输出 01 的动作", messages[1]["content"])
+
+    def test_prompt_injects_rag_context_and_task_plan_contract(self):
+        messages = build_prompt_messages("泡浓咖啡")
+        system_content = messages[0]["content"]
+
+        self.assertIn("RAG 检索上下文", system_content)
+        self.assertIn("task_operations", system_content)
+        self.assertIn("泡浓咖啡", system_content)
+        self.assertIn("left_2rad right_2rad right_2rad", system_content)
 
     def test_environment_client_requires_api_configuration(self):
         old_values = {key: os.environ.get(key) for key in ("LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL")}

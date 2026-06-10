@@ -1,6 +1,6 @@
 # LLM_VLA 中文实施计划
 
-> 当前阶段：P11 已完成，任务 4 任务计划数据结构与本地校验已实现。
+> 当前阶段：P15 已完成，任务 8 CLI 对话记忆与任务队列编辑已实现。
 > 项目根目录：`D:/il/IsaacLab/scripts/LLM_VLA`
 > Git 分支规则：只在 `codex` 分支提交。
 > 提交规则：不自动提交；每次提交前必须询问用户。
@@ -20,8 +20,14 @@
 
 - 删除 `left_circle` 和 `right_circle` 作为可执行动作。
 - 左右转动作改为 `left_2rad` / `right_2rad`。
+- 当前语义规定：未上举左转=打招呼，未上举右转=握手，上举左转=泡咖啡，上举右转=做冰淇淋。
+- 复合语义规定：上举左转后右转两次=泡浓咖啡，上举左转后左转两次=泡淡咖啡。
 - 当前简化仿真只控制 `panda_joint1` 和 `panda_joint2`。
 - 其它 Franka 关节保持 IsaacLab 默认目标，避免 reset 姿态异常。
+- 每个任务执行完成后仍然必须先 `reset`，再执行下一个任务。
+- 当没有指令或全部任务完成后，服务端持续执行 idle hold，保持复位且仿真继续 step。
+- CLI 现在维护会话任务队列、当前任务 ID 和机械臂语义状态。
+- LLM 每轮规划会收到当前任务队列、当前任务和机械臂状态，支持修改、删除、继续和停止已有任务。
 
 ## 2. 当前合法动作
 
@@ -45,6 +51,15 @@ stop
 - `hold_reset`：空闲或任务完成后保持复位，仿真继续运行。
 - `stop`：停止当前任务队列，必须单独输出。
 
+状态语义：
+
+- `arm_lift = down` 时，`left_2rad` 表示“打招呼”。
+- `arm_lift = down` 时，`right_2rad` 表示“握手”。
+- `arm_lift = up` 时，`left_2rad` 表示“泡咖啡”。
+- `arm_lift = up` 时，`right_2rad` 表示“做冰淇淋”。
+- `arm_lift = up` 时，`left_2rad right_2rad right_2rad` 表示“泡浓咖啡”。
+- `arm_lift = up` 时，`left_2rad left_2rad left_2rad` 表示“泡淡咖啡”。
+
 已删除动作：
 
 ```text
@@ -64,10 +79,10 @@ right_circle
 | P10 | 已完成 | 动作合同 v2 与 Franka 动作映射 |
 | P10-correction | 已完成 | 锁定 Franka 其它关节，只控制两个简化关节 |
 | P11 | 已完成 | 任务计划数据结构与本地校验 |
-| P12 | 待执行 | 机械臂状态语义模型 |
-| P13 | 待执行 | LLM prompt 接入 RAG 与任务计划 JSON |
-| P14 | 待执行 | 仿真 idle hold 与任务队列执行 |
-| P15 | 待执行 | CLI 对话记忆与任务队列编辑 |
+| P12 | 已完成 | 机械臂状态语义模型 |
+| P13 | 已完成 | LLM prompt 接入 RAG 与任务计划 JSON |
+| P14 | 已完成 | 仿真 idle hold 与任务队列执行 |
+| P15 | 已完成 | CLI 对话记忆与任务队列编辑 |
 | P16 | 待执行 | 双窗口集成测试与回归验证 |
 
 ## 4. 已完成任务
@@ -158,56 +173,99 @@ continue
 - 展开动作时每个任务自动追加 `reset`。
 - 全部任务完成后自动追加 `hold_reset`。
 
-## 5. 下一步任务
-
 ### 任务 5：实现机械臂状态模型
 
-目标：让系统显式记录机械臂状态，区分上举状态下左转和未上举状态下左转的语义。
-
-建议创建：
+已创建：
 
 - `llm_vla/state.py`
 - `tests/test_state.py`
+
+核心结构：
+
+```text
+RobotState
+```
 
 状态字段：
 
 ```text
 arm_lift: down | up
 base_target: neutral | left_2rad | right_2rad
-task_status: idle | running | paused | stopped
+task_status: idle | running | stopped
+last_semantic
+semantic_history
 ```
+
+语义规则：
+
+- 未上举状态下 `left_2rad` = 打招呼。
+- 未上举状态下 `right_2rad` = 握手。
+- 上举状态下 `left_2rad` = 泡咖啡。
+- 上举状态下 `right_2rad` = 做冰淇淋。
+- 上举状态下 `left_2rad right_2rad right_2rad` = 泡浓咖啡。
+- 上举状态下 `left_2rad left_2rad left_2rad` = 泡淡咖啡。
+- `reset` 回到 down + neutral + idle。
+- `hold_reset` 保持复位 idle。
+- `stop` 标记 stopped 并回到复位姿态。
 
 ### 任务 6：升级 LLM prompt 与输出解析
 
-目标：让 LLM 结合 RAG 命中内容输出任务计划 JSON，而不是只输出旧 `action_tokens` 字符串。
+已修改：
 
-需要修改：
-
-- `llm_vla/prompting.py`
 - `llm_vla/planner.py`
-- `tests/test_prompting.py`
+- `llm_vla/prompting.py`
 - `tests/test_planner.py`
+- `tests/test_prompting.py`
+- `harness/rules/llm_prompt_contract.md`
+- `harness/rag/action_examples.md`
+- `harness/rag/state_rules.md`
+- `harness/rag/action_catalog.md`
+
+能力：
+
+- `build_prompt_messages()` 会从 `harness/rag` 检索用户输入相关知识并注入 system prompt。
+- LLM prompt 优先要求输出任务计划 JSON：`visible_reasoning`、`intent`、`task_operations`。
+- planner 可解析任务计划 JSON，并展开为仿真可执行 `action_tokens`。
+- 旧 `visible_reasoning` + `action_tokens` JSON 仍兼容，便于现有 CLI 测试和简单 mock 使用。
+- 支持“泡浓咖啡”“泡淡咖啡”的复合动作提示与解析。
 
 ### 任务 7：升级仿真服务端 idle hold
 
-目标：无指令或任务完成后，机械臂保持复位且仿真继续运行。
+已修改：
 
-需要修改：
-
-- `sim/run_franka_server.py`
 - `llm_vla/server.py`
+- `sim/run_franka_server.py`
 - `tests/test_server.py`
+
+能力：
+
+- TCP 服务循环支持 `idle_func`、`poll_interval` 和 `stop_event`。
+- 没有 CLI 请求时，Isaac Sim 服务端持续推进仿真步。
+- 空闲时只把 `panda_joint1` 和 `panda_joint2` 维持在 reset 目标，其它 Franka 关节继续保持 IsaacLab 默认目标。
+- 执行完任务序列后服务端回到 idle hold，不关闭仿真。
+- 任务边界仍由任务计划层保证：每个任务结束必须 `reset`，下一个任务只能在 reset 后执行。
 
 ### 任务 8：升级 CLI 对话记忆与任务队列编辑
 
-目标：让 CLI 支持中途停止、增加、减少、改变任务，并展示当前任务队列和机械臂状态。
-
-建议创建或修改：
+已创建或修改：
 
 - `llm_vla/conversation.py`
+- `llm_vla/planner.py`
 - `llm_vla/cli_control.py`
 - `tests/test_conversation.py`
 - `tests/test_cli_control.py`
+- `tests/test_planner.py`
+
+能力：
+
+- `ConversationMemory` 维护任务队列、当前任务 ID 和 `RobotState`。
+- CLI 每轮请求会把 `existing_task_ids`、`current_task_id` 和 `conversation_context` 传给 planner。
+- LLM 输出 `modify`、`remove`、`stop` 时可以引用已有任务或当前任务。
+- CLI 执行后展示任务操作摘要、当前任务队列和机械臂状态。
+- `add`、`modify`、`continue` 的动作任务仍然由任务计划层追加任务级 `reset`，队列清空后进入 `hold_reset`。
+- 旧 `visible_reasoning` + `action_tokens` 输出仍兼容，会被作为 legacy 任务记录到会话中。
+
+## 5. 下一步任务
 
 ### 任务 9：双窗口集成验证
 

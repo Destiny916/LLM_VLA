@@ -6,27 +6,35 @@
 
 ```text
 arm_lift: down | up
-base_orientation: neutral | left_2rad | right_2rad
-task_status: idle | running | paused | stopped
+base_target: neutral | left_2rad | right_2rad
+task_status: idle | running | stopped
 ```
 
 ## 上举状态
 
 - `lift_up` 后，`arm_lift = up`。
 - 上举状态会影响后续旋转动作的语义。
-- `lift_up left_2rad` 表示“上举状态下左转 2rad”。
-- `left_2rad lift_up` 表示“先默认姿态左转 2rad，再上举”，两者不能混淆。
+- `lift_up left_2rad` 表示“泡咖啡”。
+- `lift_up right_2rad` 表示“做冰淇淋”。
+- `lift_up left_2rad right_2rad right_2rad` 表示“泡浓咖啡”。
+- `lift_up left_2rad left_2rad left_2rad` 表示“泡淡咖啡”。
+- `left_2rad lift_up` 表示“先打招呼，再上举”，不能理解为泡咖啡。
+
+## 默认放下状态
+
+- `arm_lift = down` 时，`left_2rad` 表示“打招呼”。
+- `arm_lift = down` 时，`right_2rad` 表示“握手”。
 
 ## 放下状态
 
 - `put_down` 后，`arm_lift = down`。
 - `put_down` 只处理上举相关姿态，不等同于全局 `reset`。
-- `lift_up left_2rad put_down right_2rad` 表示先上举左转，再放下后右转。
+- `lift_up left_2rad put_down right_2rad` 表示先泡咖啡，再放下后握手。
 
 ## 复位状态
 
 - `reset` 后，`arm_lift = down`。
-- `reset` 后，`base_orientation = neutral`。
+- `reset` 后，`base_target = neutral`。
 - `reset` 是任务完成边界。
 - 全部任务完成后，服务端进入 `hold_reset`。
 

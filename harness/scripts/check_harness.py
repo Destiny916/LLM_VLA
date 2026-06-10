@@ -89,6 +89,10 @@ def main() -> int:
     require("P0:" in plan_state, "missing P0 plan history", failures)
     require("Current step:" in plan_state, "missing current plan step", failures)
     require("P11-complete" in plan_state, "missing P11 plan state", failures)
+    require("P12-complete" in plan_state, "missing P12 plan state", failures)
+    require("P13-complete" in plan_state, "missing P13 plan state", failures)
+    require("P14-complete" in plan_state, "missing P14 plan state", failures)
+    require("P15-complete" in plan_state, "missing P15 plan state", failures)
 
     for token in CURRENT_TOKENS:
         require(token in output_contract, f"missing output contract token: {token}", failures)
@@ -120,16 +124,33 @@ def main() -> int:
     require("0 -> left_2rad reset" in prompt_contract, "missing binary zero prompt mapping", failures)
     require("1 -> right_2rad reset" in prompt_contract, "missing binary one prompt mapping", failures)
     require("Actions are not forced to reset after every motion" in output_contract, "missing task-level reset rule", failures)
+    require("each task must finish its `reset` before the next task starts" in output_contract, "missing multi-task reset boundary rule", failures)
+    require("does not replace the per-task `reset`" in output_contract, "missing idle hold reset distinction", failures)
     require("lift_up` must be followed by `put_down`" in output_contract, "missing lift/put_down output rule", failures)
+
+    for text in ("打招呼", "握手", "泡咖啡", "做冰淇淋", "泡浓咖啡", "泡淡咖啡"):
+        require(text in combined, f"missing state semantic text: {text}", failures)
 
     for text in ("TaskPlan", "TaskOperation", "Subtask", "task_operations", "reset_after_task"):
         require(text in memory or text in combined, f"missing task-plan contract text: {text}", failures)
+    for text in ("RobotState", "semantic_history", "arm_lift", "base_target"):
+        require(text in memory or text in combined, f"missing robot-state contract text: {text}", failures)
+    for text in ("RAG", "task-plan JSON", "task_operations"):
+        require(text in memory or text in combined, f"missing task-6 contract text: {text}", failures)
+    for text in ("idle hold", "polls for CLI requests", "replaces_task_reset: false"):
+        require(text in memory or text in combined, f"missing task-7 contract text: {text}", failures)
+    for text in ("ConversationMemory", "existing_task_ids", "current_task_id", "conversation_context"):
+        require(text in memory or text in combined, f"missing task-8 conversation text: {text}", failures)
 
     for relative_path in (
         "llm_vla/rag.py",
+        "llm_vla/conversation.py",
+        "llm_vla/state.py",
         "llm_vla/task_plan.py",
         "llm_vla/task_validation.py",
         "tests/test_rag.py",
+        "tests/test_conversation.py",
+        "tests/test_state.py",
         "tests/test_task_plan.py",
         "tests/test_task_validation.py",
     ):

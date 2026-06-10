@@ -14,7 +14,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from llm_vla.server import serve_forever  # noqa: E402
-from llm_vla.sim_actions import ACTION_STEPS, RESET_STEPS, joint_targets_for_sequence  # noqa: E402
+from llm_vla.sim_actions import ACTION_STEPS, RESET_JOINT_TARGETS, RESET_STEPS, joint_targets_for_sequence  # noqa: E402
 from llm_vla.sim_runtime import should_force_exit_after_run  # noqa: E402
 
 
@@ -24,6 +24,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--port", type=int, default=8765, help="TCP port to bind.")
     parser.add_argument("--action_steps", type=int, default=ACTION_STEPS, help="Simulation steps for each action token.")
     parser.add_argument("--reset_steps", type=int, default=RESET_STEPS, help="Simulation steps for each reset token.")
+    parser.add_argument(
+        "--idle_poll_interval",
+        type=float,
+        default=0.01,
+        help="Socket poll interval in seconds; each idle poll advances one reset-hold simulation step.",
+    )
     parser.add_argument(
         "--graceful_close",
         action="store_true",
@@ -93,17 +99,25 @@ class FrankaSequenceExecutor:
         )
         for target_step in targets:
             for _ in range(target_step.step_count):
-                joint_target = self.robot.data.default_joint_pos.clone()
-                for joint_name, target_rad in target_step.joint_targets.items():
-                    joint_target[:, self.joint_ids_by_name[joint_name]] = torch.tensor(
-                        target_rad,
-                        device=self.robot.device,
-                    )
-                self.robot.set_joint_position_target(joint_target)
-                self.robot.write_data_to_sim()
-                self.sim.step()
-                self.robot.update(self.sim.get_physics_dt())
+                self._step_joint_targets(target_step.joint_targets)
             print(f"{target_step.token} {target_step.joint_targets}", flush=True)
+
+    def hold_reset_once(self) -> None:
+        """Advance one simulation step while holding the simplified arm at reset."""
+        self._ensure_joint_ids(set(RESET_JOINT_TARGETS))
+        self._step_joint_targets(RESET_JOINT_TARGETS)
+
+    def _step_joint_targets(self, joint_targets: dict[str, float]) -> None:
+        joint_target = self.robot.data.default_joint_pos.clone()
+        for joint_name, target_rad in joint_targets.items():
+            joint_target[:, self.joint_ids_by_name[joint_name]] = torch.tensor(
+                target_rad,
+                device=self.robot.device,
+            )
+        self.robot.set_joint_position_target(joint_target)
+        self.robot.write_data_to_sim()
+        self.sim.step()
+        self.robot.update(self.sim.get_physics_dt())
 
     def _ensure_joint_ids(self, joint_names: set[str]) -> None:
         for joint_name in sorted(joint_names):
@@ -134,7 +148,13 @@ def create_executor() -> FrankaSequenceExecutor:
 def main() -> int:
     executor = create_executor()
     print(f"LLM_VLA Franka server listening on {args_cli.host}:{args_cli.port}", flush=True)
-    serve_forever(args_cli.host, args_cli.port, executor)
+    serve_forever(
+        args_cli.host,
+        args_cli.port,
+        executor,
+        idle_func=executor.hold_reset_once,
+        poll_interval=args_cli.idle_poll_interval,
+    )
     return 0
 
 

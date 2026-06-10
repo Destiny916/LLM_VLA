@@ -1,6 +1,6 @@
 # Plan State
 
-Current step: P11 complete: task-plan data structures, validation, and expansion are implemented. Next step is P12 robot state model.
+Current step: P15 complete: CLI conversation memory and task queue editing are implemented. Next step is P16 two-window integration verification.
 
 Plan history:
 
@@ -22,3 +22,7 @@ Plan history:
 - P10-complete: implemented action contract v2 with `left_2rad`, `right_2rad`, `lift_up`, `put_down`, `reset`, `hold_reset`, and `stop`
 - P10-correction-complete: fixed strange reset pose by controlling only `panda_joint1` base rotation and `panda_joint2` vertical motion; all other Franka joints keep IsaacLab default targets
 - P11-complete: implemented `TaskPlan`, `TaskOperation`, `Subtask`, task-plan validation, and expansion into executable action tokens with task-level reset and final `hold_reset`
+- P12-complete: implemented `RobotState`, semantic state transitions, and meanings: down-left `打招呼`, down-right `握手`, up-left `泡咖啡`, up-right `做冰淇淋`
+- P13-complete: planner prompt injects `harness/rag` context, prefers `task_operations` JSON, parses task-plan output, and expands it to executable action tokens
+- P14-complete: persistent Isaac Sim server now polls for requests, advances idle reset-hold simulation steps while no command is present, and resumes idle hold after task sequences complete
+- P15-complete: CLI now uses `ConversationMemory` to pass task queue context to the planner, support add/remove/modify/continue/stop task operations across turns, and display the queue plus robot state

@@ -20,6 +20,7 @@ class PromptingTests(unittest.TestCase):
         self.assertIn("left_circle 和 right_circle 已删除", prompt)
         self.assertIn("visible_reasoning", prompt)
         self.assertIn("action_tokens", prompt)
+        self.assertIn("task_operations", prompt)
         self.assertIn("JSON", prompt)
         self.assertIn("只包含两个字段", prompt)
         self.assertIn("简短中文可见决策摘要", prompt)
@@ -28,6 +29,8 @@ class PromptingTests(unittest.TestCase):
         self.assertIn("1 -> right_2rad reset", prompt)
         self.assertIn("panda_joint1", prompt)
         self.assertIn("panda_joint2", prompt)
+        for text in ("打招呼", "握手", "泡咖啡", "做冰淇淋", "泡浓咖啡", "泡淡咖啡"):
+            self.assertIn(text, prompt)
         self.assertIn("其它 Franka 关节必须锁定", prompt)
         self.assertIn("动作之间不再强制 reset", prompt)
         self.assertIn(harness_context, prompt)
@@ -56,10 +59,13 @@ class PromptingTests(unittest.TestCase):
         text = contract.read_text(encoding="utf-8")
         self.assertIn("visible_reasoning", text)
         self.assertIn("action_tokens", text)
+        self.assertIn("task_operations", text)
         self.assertIn("0 -> left_2rad reset", text)
         self.assertIn("1 -> right_2rad reset", text)
         self.assertIn("panda_joint1", text)
         self.assertIn("panda_joint2", text)
+        for semantic in ("打招呼", "握手", "泡咖啡", "做冰淇淋", "泡浓咖啡", "泡淡咖啡"):
+            self.assertIn(semantic, text)
 
 
 if __name__ == "__main__":
