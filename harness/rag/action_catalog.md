@@ -39,14 +39,28 @@ right_circle
 - 中文含义：左转。
 - 目标关节：`panda_joint1`。
 - 目标：`-2.0 rad`。
-- 状态含义：如果 `arm_lift = up`，表示保持上举状态左转；如果 `arm_lift = down`，表示默认姿态左转。
+- 状态含义：如果 `arm_lift = down`，表示“打招呼”；如果 `arm_lift = up`，表示“泡咖啡”。
 
 ### right_2rad
 
 - 中文含义：右转。
 - 目标关节：`panda_joint1`。
 - 目标：`+2.0 rad`。
-- 状态含义：如果 `arm_lift = up`，表示保持上举状态右转；如果 `arm_lift = down`，表示默认姿态右转。
+- 状态含义：如果 `arm_lift = down`，表示“握手”；如果 `arm_lift = up`，表示“做冰淇淋”。
+
+## 复合语义
+
+### 泡浓咖啡
+
+- 前置状态：`arm_lift = up`。
+- 动作片段：`left_2rad right_2rad right_2rad`。
+- 完整任务建议：`lift_up left_2rad right_2rad right_2rad put_down reset`。
+
+### 泡淡咖啡
+
+- 前置状态：`arm_lift = up`。
+- 动作片段：`left_2rad left_2rad left_2rad`。
+- 完整任务建议：`lift_up left_2rad left_2rad left_2rad put_down reset`。
 
 ### lift_up
 
@@ -69,7 +83,7 @@ right_circle
 - 中文含义：任务级复位。
 - 目标关节：`panda_joint1 = 0.0`，`panda_joint2 = 0.0`。
 - 锁定关节：其它 Franka 关节保持 IsaacLab 默认目标。
-- 状态变化：`arm_lift = down`，`base_orientation = neutral`。
+- 状态变化：`arm_lift = down`，`base_target = neutral`。
 - 使用位置：每个任务完成后必须执行一次。
 
 ### hold_reset

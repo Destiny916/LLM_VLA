@@ -17,7 +17,12 @@ def build_system_prompt(harness_context: str) -> str:
         可见决策摘要用于 CLI 展示，不是隐藏链式思考，也不能作为执行依据。
 
         你必须输出 JSON 对象，不要输出 Markdown。
-        JSON 只包含两个字段：
+        优先输出任务计划 JSON，字段只能是：
+        - visible_reasoning：一句简短中文可见决策摘要，不是隐藏链式思考。
+        - intent：用户意图摘要。
+        - task_operations：任务操作列表，每个任务包含 operation、task_id、description、subtasks、reset_after_task。
+
+        旧兼容路径仍允许 action_tokens JSON；该 JSON 只包含两个字段：
         - visible_reasoning：一句简短中文可见决策摘要，不是隐藏链式思考。
         - action_tokens：唯一可执行字段，只能由合法动作 token 组成，并用单个空格分隔。
 
@@ -34,6 +39,18 @@ def build_system_prompt(harness_context: str) -> str:
         - reset：panda_joint1 = 0.0 且 panda_joint2 = 0.0，其它关节保持锁定默认目标。
         - hold_reset：无任务或任务完成后保持 reset 目标，不关闭仿真。
         - stop：停止当前任务队列，必须单独输出。
+
+        当前任务语义映射：
+        - 未上举状态下 left_2rad 表示打招呼。
+        - 未上举状态下 right_2rad 表示握手。
+        - 上举状态下 left_2rad 表示泡咖啡。
+        - 上举状态下 right_2rad 表示做冰淇淋。
+        - 上举状态下 left_2rad right_2rad right_2rad 表示泡浓咖啡。
+        - 上举状态下 left_2rad left_2rad left_2rad 表示泡淡咖啡。
+        - 因此 lift_up left_2rad put_down reset 表示上举后泡咖啡再复位。
+        - 因此 lift_up right_2rad put_down reset 表示上举后做冰淇淋再复位。
+        - 因此 lift_up left_2rad right_2rad right_2rad put_down reset 表示泡浓咖啡。
+        - 因此 lift_up left_2rad left_2rad left_2rad put_down reset 表示泡淡咖啡。
 
         已删除动作：
         - left_circle 和 right_circle 已删除，不允许输出。
@@ -56,7 +73,10 @@ def build_system_prompt(harness_context: str) -> str:
         - action_tokens 中不能包含数字、JSON、标点、中文解释或额外文本。
         - 最终进入仿真的只允许是本地校验后的 action_tokens。
 
-        输出示例：
+        任务计划 JSON 示例：
+        {{"visible_reasoning":"用户要求泡浓咖啡。","intent":"泡浓咖啡","task_operations":[{{"operation":"add","task_id":"task_1","description":"泡浓咖啡","subtasks":[{{"description":"上举","action_tokens":"lift_up"}},{{"description":"左转后右转两次","action_tokens":"left_2rad right_2rad right_2rad"}},{{"description":"放下","action_tokens":"put_down"}}],"reset_after_task":true}}]}}
+
+        旧兼容输出示例：
         {{"visible_reasoning":"用户要求表示 01；0 映射为 left_2rad，1 映射为 right_2rad，任务结束后复位。","action_tokens":"left_2rad right_2rad reset"}}
 
         你必须读取并遵守以下 harness 内容：
@@ -77,7 +97,8 @@ def build_repair_prompt(previous_output: str, error: str) -> str:
         本地校验错误：
         {error}
 
-        请重新输出 JSON，只包含 visible_reasoning 和 action_tokens。
+        请重新输出 JSON，优先使用 visible_reasoning、intent 和 task_operations。
+        如果使用旧兼容路径，则只包含 visible_reasoning 和 action_tokens。
         visible_reasoning 只写一句简短可见决策摘要，不是隐藏链式思考。
         action_tokens 只能使用这些 token：{ALLOWED_ACTION_TEXT}。
         不要输出 Markdown、额外解释、数字 token、坐标或关节数组。

@@ -11,6 +11,12 @@ execution:
   action_steps: 30
   reset_steps: 60
   max_default_steps: 240
+  task_boundary_reset_required: true
+  idle_hold:
+    service_layer: true
+    poll_interval_seconds: 0.01
+    advances_simulation_when_no_command: true
+    replaces_task_reset: false
 
 actions:
   left_2rad:
@@ -18,12 +24,16 @@ actions:
     joint: panda_joint1
     target_rad: -2.0
     target_degrees: -114.591559
+    semantic_when_down: 打招呼
+    semantic_when_lifted: 泡咖啡
     requires_following_reset: false
   right_2rad:
     binary_meaning: "1"
     joint: panda_joint1
     target_rad: 2.0
     target_degrees: 114.591559
+    semantic_when_down: 握手
+    semantic_when_lifted: 做冰淇淋
     requires_following_reset: false
   lift_up:
     state_change:
@@ -52,6 +62,14 @@ actions:
   stop:
     control_only: true
     standalone_only: true
+
+composite_semantics:
+  lifted_left_right_right:
+    action_tokens: left_2rad right_2rad right_2rad
+    semantic: 泡浓咖啡
+  lifted_left_left_left:
+    action_tokens: left_2rad left_2rad left_2rad
+    semantic: 泡淡咖啡
 
 removed_actions:
   left_circle:

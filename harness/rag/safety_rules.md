@@ -24,7 +24,9 @@ LLM 只能输出结构化任务计划，不允许输出：
 - 所有动作必须来自 `action_catalog.md`。
 - `lift_up` 与 `put_down` 必须维护 `arm_lift` 状态。
 - 每个任务完成后必须 `reset`。
+- 下一个任务必须在前一个任务 `reset` 完成后才能开始。
 - 全部任务完成后必须进入 `hold_reset`。
+- 服务端 idle hold 不能省略任务级 `reset`。
 - `stop` 不允许关闭 Isaac Sim 服务端。
 
 ## API Key 安全

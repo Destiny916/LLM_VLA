@@ -7,11 +7,16 @@ from collections.abc import Callable
 from typing import Any, Protocol
 
 from .client import send_sequence
+from .conversation import ConversationMemory
 from .planner import OpenAICompatiblePlanner, PlanningResult
 
 
 class PlannerLike(Protocol):
-    def plan_details(self, request: str) -> PlanningResult:
+    def plan_details(
+        self,
+        request: str,
+        **kwargs: Any,
+    ) -> PlanningResult:
         """Return detailed LLM planning output."""
 
 
@@ -37,6 +42,7 @@ def run_cli(
     port: int = 8765,
 ) -> int:
     """Run the interactive CLI loop."""
+    conversation = ConversationMemory()
     while True:
         try:
             user_input = input_func("LLM_VLA> ")
@@ -53,12 +59,23 @@ def run_cli(
 
         output_func(f"用户输入: {request}")
         try:
-            result = planner.plan_details(request)
+            result = planner.plan_details(
+                request,
+                existing_task_ids=conversation.existing_task_ids,
+                current_task_id=conversation.current_task_id,
+                conversation_context=conversation.prompt_context(),
+            )
+            update = conversation.apply_planning_result(result)
             output_func(f"API 原始输出: {result.raw_output}")
             output_func(f"思考摘要: {result.visible_reasoning}")
-            output_func(f"API token: {result.action_tokens}")
+            output_func(f"API token: {update.action_tokens}")
             output_func("本地校验: ok")
-            sim_response = send_sequence_func(host, port, result.action_tokens)
+            output_func(f"任务操作: {update.operations_summary}")
+            output_func("当前任务队列:")
+            output_func(update.queue_summary)
+            output_func("机械臂状态:")
+            output_func(update.state_summary)
+            sim_response = send_sequence_func(host, port, update.action_tokens)
             status = sim_response.get("status")
             output_func(f"仿真结果: {status}")
             if status == "ok":
